@@ -1,0 +1,12 @@
+{
+	"id": "obsidian-tk",
+	"name": "TODO/TK Outline",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "Finds TODO and TK markers in documents and displays them in the right sidebar like the outline view.",
+	"author": "John Vining",
+	"authorUrl": "https://jvining.com/",
+	"fundingUrl": "",
+	"isDesktopOnly": false
+}
+

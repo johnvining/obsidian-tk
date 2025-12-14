@@ -1,0 +1,54 @@
+.todo-tk-container {
+	padding: 0;
+}
+
+.outline {
+	height: 100%;
+	overflow-y: auto;
+}
+
+.outline-content {
+	padding: 0;
+}
+
+.todo-tk-item {
+	padding: 4px 8px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.todo-tk-item:hover {
+	background-color: var(--nav-item-background-hover);
+}
+
+.todo-tk-item .tree-item-inner {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.todo-tk-badge {
+	display: inline-block;
+	padding: 2px 6px;
+	border-radius: 3px;
+	font-size: 0.75em;
+	font-weight: 600;
+	flex-shrink: 0;
+}
+
+.todo-tk-item.todo-tk-todo .todo-tk-badge {
+	background-color: #4a9eff;
+	color: white;
+}
+
+.todo-tk-item.todo-tk-tk .todo-tk-badge {
+	background-color: #ffa94d;
+	color: white;
+}
+
+.todo-tk-item .tree-item-inner-text {
+	color: var(--nav-item-color);
+	word-wrap: break-word;
+	flex: 1;
+}
+
