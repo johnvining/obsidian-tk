@@ -70,64 +70,56 @@ export class TodoTkView extends ItemView {
 		const contentEl = container.querySelector('.todo-tk-container');
 		if (!contentEl) return;
 
-		contentEl.empty();
-
-		// Use stored markdown view if available and still valid
-		let markdownView: MarkdownView | null = this.currentMarkdownView;
+		// Always get the current active markdown view (don't rely on stored one)
+		let markdownView: MarkdownView | null = this.app.workspace.getActiveViewOfType(MarkdownView);
 		
-		// Verify the stored view is still valid
-		if (markdownView && (!markdownView.editor || !markdownView.file)) {
-			markdownView = null;
-			this.currentMarkdownView = null;
-		}
-
-		// If no stored view, try to find one
+		// If no active markdown view, try to find the most recently active one
 		if (!markdownView) {
-			// Get all markdown leaves
 			const markdownLeaves = this.app.workspace.getLeavesOfType('markdown');
-			
-			if (markdownLeaves.length > 0) {
-				// First, try to get the active markdown view (might be null if sidebar is active)
-				markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				
-				// If no active markdown view, find the first valid one
-				if (!markdownView) {
-					for (const leaf of markdownLeaves) {
-						const view = leaf.view as MarkdownView;
-						if (view && view.editor && view.file) {
-							markdownView = view;
-							break;
-						}
-					}
-				}
-				
-				// Verify the found view is valid
-				if (markdownView && (!markdownView.editor || !markdownView.file)) {
-					markdownView = null;
+			// Try to find a valid markdown view
+			for (const leaf of markdownLeaves) {
+				const view = leaf.view as MarkdownView;
+				if (view && view.editor && view.file) {
+					markdownView = view;
+					break;
 				}
 			}
 		}
 
+		// Verify the found view is valid
 		if (!markdownView || !markdownView.editor || !markdownView.file) {
+			contentEl.empty();
 			contentEl.createEl('p', { text: 'No active markdown file' });
+			// Clear old polling if file is no longer available
+			if (this.pollInterval) {
+				clearInterval(this.pollInterval);
+				this.pollInterval = null;
+			}
 			this.currentFile = null;
 			this.currentMarkdownView = null;
 			return;
 		}
 
+		const newFile = markdownView.file.path;
+		const fileChanged = newFile !== this.currentFile;
+
+		// If file changed, clear old polling interval
+		if (fileChanged && this.pollInterval) {
+			clearInterval(this.pollInterval);
+			this.pollInterval = null;
+		}
+
 		// Store the current file path and view reference
-		this.currentFile = markdownView.file?.path || null;
+		this.currentFile = newFile;
 		this.currentMarkdownView = markdownView;
 		const content = markdownView.editor.getValue();
 		this.items = this.parseContent(content);
 
-		// Set up editor change listener for this file (only if not already set up for this file)
-		if (!this.pollInterval || markdownView.file?.path !== this.currentFile) {
-			// Clear old interval if exists
-			if (this.pollInterval) {
-				clearInterval(this.pollInterval);
-				this.pollInterval = null;
-			}
+		// Clear and rebuild the content
+		contentEl.empty();
+
+		// Set up editor change listener for this file (always set up if file changed or no interval exists)
+		if (fileChanged || !this.pollInterval) {
 			this.setupEditorChangeListener(markdownView);
 		}
 
@@ -175,19 +167,43 @@ export class TodoTkView extends ItemView {
 		}
 
 		// Use a simple polling approach to detect content changes
-		// Check every 500ms if the content has changed
+		// Check every 500ms if the content has changed or file has changed
 		this.pollInterval = setInterval(() => {
-			// Check if view is still valid
-			if (!this.currentMarkdownView || !this.currentMarkdownView.editor || !this.currentMarkdownView.file) {
-				if (this.pollInterval) {
-					clearInterval(this.pollInterval);
-					this.pollInterval = null;
+			// Check if the active file has changed
+			const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+			const activeFile = activeView?.file?.path || null;
+			
+			// If active file changed, trigger update
+			if (activeFile && activeFile !== this.currentFile) {
+				if (this.updateTimeout) {
+					clearTimeout(this.updateTimeout);
 				}
-				this.currentMarkdownView = null;
+				this.updateTimeout = setTimeout(() => {
+					this.update();
+				}, 100);
 				return;
 			}
 
-			// Only check if this is still the file we're tracking
+			// Check if current tracked view is still valid
+			if (!this.currentMarkdownView || !this.currentMarkdownView.editor || !this.currentMarkdownView.file) {
+				// Try to get active view
+				if (activeView && activeView.editor && activeView.file) {
+					this.currentMarkdownView = activeView;
+					this.currentFile = activeView.file.path;
+					this.update();
+					return;
+				} else {
+					if (this.pollInterval) {
+						clearInterval(this.pollInterval);
+						this.pollInterval = null;
+					}
+					this.currentMarkdownView = null;
+					this.currentFile = null;
+					return;
+				}
+			}
+
+			// Only check content if this is still the file we're tracking
 			if (this.currentMarkdownView.file.path === trackedFile && trackedFile === this.currentFile) {
 				const currentContent = this.currentMarkdownView.editor.getValue();
 				const currentItems = this.parseContent(currentContent);
@@ -208,12 +224,13 @@ export class TodoTkView extends ItemView {
 					}, 200);
 				}
 			} else {
-				// File changed, stop polling
-				if (this.pollInterval) {
-					clearInterval(this.pollInterval);
-					this.pollInterval = null;
+				// File changed, trigger update
+				if (this.updateTimeout) {
+					clearTimeout(this.updateTimeout);
 				}
-				this.currentMarkdownView = null;
+				this.updateTimeout = setTimeout(() => {
+					this.update();
+				}, 100);
 			}
 		}, 500);
 	}
