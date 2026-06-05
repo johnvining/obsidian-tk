@@ -70,13 +70,16 @@ export class TodoTkView extends ItemView {
 		const contentEl = container.querySelector('.todo-tk-container');
 		if (!contentEl) return;
 
-		// Always get the current active markdown view (don't rely on stored one)
+		// Prefer the active markdown view, but keep using the last tracked markdown view
+		// if the plugin sidebar itself is active.
 		let markdownView: MarkdownView | null = this.app.workspace.getActiveViewOfType(MarkdownView);
-		
-		// If no active markdown view, try to find the most recently active one
-		if (!markdownView) {
+		if (!markdownView || !markdownView.editor || !markdownView.file) {
+			markdownView = this.currentMarkdownView?.editor && this.currentMarkdownView.file ? this.currentMarkdownView : null;
+		}
+
+		// If we still don't have a valid markdown view, fall back to any open markdown leaf.
+		if (!markdownView || !markdownView.editor || !markdownView.file) {
 			const markdownLeaves = this.app.workspace.getLeavesOfType('markdown');
-			// Try to find a valid markdown view
 			for (const leaf of markdownLeaves) {
 				const view = leaf.view as MarkdownView;
 				if (view && view.editor && view.file) {
