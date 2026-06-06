@@ -269,7 +269,7 @@ export class TodoTkView extends ItemView {
 
 				const afterTodo = line.substring(startPos + 4); // "TODO" is 4 chars
 				const words = afterTodo.trim().split(/\s+/).slice(0, 10);
-				const text = words.join(' ');
+				const text = this.truncateText(words.join(' '));
 				
 				// Calculate absolute position
 				let position = 0;
@@ -308,7 +308,7 @@ export class TodoTkView extends ItemView {
 				const beforeTk = line.substring(0, startPos).trim();
 				const words = beforeTk.split(/\s+/);
 				const threeWords = words.slice(-3).join(' ');
-				const text = threeWords;
+				const text = this.truncateText(threeWords);
 				
 				// Calculate absolute position
 				let position = 0;
@@ -327,6 +327,16 @@ export class TodoTkView extends ItemView {
 		});
 
 		return items;
+	}
+
+	private truncateText(text: string): string {
+		const delimiterIndex = Math.min(
+			...['.', ')']
+				.map((delimiter) => text.indexOf(delimiter))
+				.filter((idx) => idx >= 0)
+		);
+
+		return delimiterIndex >= 0 ? text.slice(0, delimiterIndex).trim() : text.trim();
 	}
 
 	private jumpToLine(item: TodoTkItem) {
